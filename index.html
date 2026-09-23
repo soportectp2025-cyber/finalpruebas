@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evaluación Interactiva WAN y VPN - CTP Santa Bárbara</title>
+    <style>
+        :root {
+            --primary: #1e3a8a;
+            --primary-dark: #1e293b;
+            --secondary: #0284c7;
+            --accent: #f59e0b;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #0f172a;
+            --border: #cbd5e1;
+            --correct: #16a34a;
+            --incorrect: #dc2626;
+            --selected: #0284c7;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            padding-bottom: 70px;
+        }
+
+        /* Modales */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(5px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal {
+            background: var(--card-bg);
+            padding: 2.5rem;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+
+        .modal h2 {
+            color: var(--primary);
+            margin-bottom: 1rem;
+        }
+
+        .input-group {
+            margin-bottom: 1.2rem;
+            text-align: left;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 0.4rem;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background: var(--secondary);
+        }
+
+        /* Encabezado Fijo */
+        header {
+            position: sticky;
+            top: 0;
+            background: var(--primary-dark);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            z-index: 100;
+        }
+
+        .header-info h1 {
+            font-size: 1.2rem;
+        }
+
+        .header-info p {
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+
+        .stats {
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+        }
+
+        .stat-box {
+            background: rgba(255,255,255,0.1);
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .stat-box span {
+            display: block;
+            font-size: 0.75rem;
+            color: #cbd5e1;
+        }
+
+        .stat-box strong {
+            font-size: 1.2rem;
+        }
+
+        /* Main Container */
+        main {
+            max-width: 1000px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            width: 100%;
+        }
+
+        .nav-parts {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .btn-part {
+            flex: 1;
+            padding: 0.75rem;
+            background: #e2e8f0;
+            color: var(--text);
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .btn-part.active {
+            background: var(--secondary);
+            color: white;
+        }
+
+        /* Banco de Opciones */
+        .options-bank {
+            background: var(--card-bg);
+            padding: 1.2rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            margin-bottom: 2rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+            min-height: 80px;
+            align-items: center;
+        }
+
+        .option-card {
+            background: #eff6ff;
+            color: var(--primary);
+            border: 1px solid #bfdbfe;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: grab;
+            font-weight: 600;
+            user-select: none;
+            transition: all 0.2s;
+        }
+
+        .option-card.selected {
+            background: var(--accent);
+            color: white;
+            border-color: #d97706;
+        }
+
+        .option-card.used {
+            opacity: 0.3;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        /* Lista de Preguntas */
+        .questions-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1.2rem;
+        }
+
+        .question-card {
+            background: var(--card-bg);
+            padding: 1.2rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            line-height: 1.8;
+            font-size: 1.05rem;
+        }
+
+        .drop-zone {
+            display: inline-block;
+            min-width: 120px;
+            height: 35px;
+            border: 2px dashed var(--border);
+            border-radius: 6px;
+            vertical-align: middle;
+            margin: 0 0.4rem;
+            padding: 0 0.5rem;
+            text-align: center;
+            line-height: 31px;
+            font-weight: bold;
+            color: var(--primary);
+            background: #f1f5f9;
+            transition: all 0.2s;
+        }
+
+        .drop-zone.hover {
+            border-color: var(--secondary);
+            background: #e0f2fe;
+        }
+
+        .drop-zone.filled {
+            border-style: solid;
+            border-color: var(--secondary);
+            background: #f0f9ff;
+        }
+
+        .drop-zone.correct {
+            border-color: var(--correct);
+            background: #dcfce7;
+            color: var(--correct);
+        }
+
+        .drop-zone.incorrect {
+            border-color: var(--incorrect);
+            background: #fee2e2;
+            color: var(--incorrect);
+        }
+
+        .explanation {
+            margin-top: 0.8rem;
+            padding: 0.6rem;
+            background: #f8fafc;
+            border-left: 4px solid var(--secondary);
+            font-size: 0.9rem;
+            display: none;
+        }
+
+        /* Overlay de Pausa */
+        #pause-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.98);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 500;
+        }
+
+        .hidden { display: none !important; }
+
+        /* Footer de Controles */
+        footer {
+            position: fixed;
+            bottom: 0; left: 0; width: 100%;
+            background: var(--primary-dark);
+            padding: 0.75rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .footer-btns {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-small {
+            background: #334155;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        .btn-small:hover { background: #475569; }
+
+        @media (max-width: 600px) {
+            header { flex-direction: column; gap: 0.5rem; text-align: center; }
+            .stats { width: 100%; justify-content: space-around; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Modal Inicial -->
+    <div id="modal-start" class="modal-overlay">
+        <div class="modal">
+            <h2>Evaluación Sumativa WAN y VPN</h2>
+            <p style="margin-bottom: 1.5rem; color: #64748b; font-size: 0.9rem;">CTP Santa Bárbara - Adm. y Soporte a Redes</p>
+            <form id="form-start">
+                <div class="input-group">
+                    <label for="cedula">Número de Cédula:</label>
+                    <input type="text" id="cedula" required placeholder="Ej: 102340567">
+                </div>
+                <div class="input-group">
+                    <label for="nombre">Nombre Completo:</label>
+                    <input type="text" id="nombre" required placeholder="Ej: Maria Perez Solano">
+                </div>
+                <button type="submit" class="btn" style="width: 100%;">Iniciar Evaluación</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Resultados -->
+    <div id="modal-results" class="modal-overlay hidden">
+        <div class="modal">
+            <h2>Resultados de la Evaluación</h2>
+            <div style="font-size: 3rem; margin: 1rem 0; font-weight: bold; color: var(--primary);" id="res-score">0/12</div>
+            <p style="font-size: 1.2rem; margin-bottom: 1.5rem;" id="res-percentage">0%</p>
+            <p id="sending-status" style="font-size: 0.85rem; color: #64748b; margin-bottom: 1rem;"></p>
+            <button class="btn" onclick="closeResultsModal()" style="width: 100%;">Revisar Respuestas</button>
+        </div>
+    </div>
+
+    <!-- Overlay de Pausa -->
+    <div id="pause-overlay" class="hidden">
+        <h1 style="font-size: 2.5rem; margin-bottom: 1rem;">EVALUACIÓN EN PAUSA</h1>
+        <p style="margin-bottom: 2rem;">El tiempo se ha detenido y las preguntas están ocultas.</p>
+        <button class="btn" onclick="togglePause()">Reanudar Examen</button>
+    </div>
+
+    <!-- Encabezado -->
+    <header>
+        <div class="header-info">
+            <h1>Administración y Soporte a Redes</h1>
+            <p>CTP Santa Bárbara | 11º Año</p>
+        </div>
+        <div class="stats">
+            <div class="stat-box">
+                <span>SECCIÓN</span>
+                <strong id="part-indicator">Parte 1</strong>
+            </div>
+            <div class="stat-box">
+                <span>PROGRESO</span>
+                <strong id="progress-indicator">0/12</strong>
+            </div>
+            <div class="stat-box">
+                <span>TIEMPO</span>
+                <strong id="timer">05:00</strong>
+            </div>
+        </div>
+    </header>
+
+    <!-- Contenido Principal -->
+    <main>
+        <div class="nav-parts">
+            <button class="btn-part active" id="btn-part-1" onclick="switchPart(1)">Parte 1: Conceptos WAN</button>
+            <button class="btn-part" id="btn-part-2" onclick="switchPart(2)">Parte 2: Seguridad e IPsec</button>
+        </div>
+
+        <div class="options-bank" id="options-bank">
+            <!-- Cargado Dinámicamente -->
+        </div>
+
+        <div class="questions-container" id="questions-container">
+            <!-- Cargado Dinámicamente -->
+        </div>
+    </main>
+
+    <!-- Footer Controles -->
+    <footer>
+        <div class="footer-btns">
+            <button class="btn-small" onclick="togglePause()">Pausar</button>
+            <button class="btn-small" id="btn-sound" onclick="toggleSound()">Sonido: ON</button>
+            <button class="btn-small" onclick="toggleFullscreen()">Pantalla Completa</button>
+        </div>
+        <button class="btn" style="background: var(--correct);" onclick="submitExam()">Enviar Respuestas</button>
+    </footer>
+
+    <script>
+        // Configuración de Backend
+        const GOOGLE_APP_SCRIPT_URL = 'INSERTAR_AQUI_TU_WEB_APP_URL';
+
+        // Dataset de Evaluación de 12 Ítems
+        const dataset = [
+            { id: 1, part: 1, beforeText: "En el modelo OSI, las redes WAN operan principalmente en la Capa Física y en la Capa de ", afterText: ".", correct: "Enlace de Datos", explanation: "Las WAN centran sus estándares en las Capas 1 y 2 de OSI para la transmisión física y empaquetamiento de tramas." },
+            { id: 2, part: 1, beforeText: "El equipo ubicado en las instalaciones del cliente (routers, switches, módems) se conoce como ", afterText: ".", correct: "CPE", explanation: "CPE (Customer Premises Equipment) representa los terminales localizados del lado del cliente." },
+            { id: 3, part: 1, beforeText: "El límite físico que divide la responsabilidad entre el proveedor del servicio y el usuario es el ", afterText: ".", correct: "Punto de Demarcación", explanation: "Es la frontera exacta donde termina el mantenimiento del ISP y comienza el del usuario." },
+            { id: 4, part: 1, beforeText: "El dispositivo que suministra la señal de reloj de sincronización y conecta al DTE se llama ", afterText: ".", correct: "DCE", explanation: "El DCE (Data Circuit-terminating Equipment) provee la señal de reloj (clock rate) para sincronizar el enlace." },
+            { id: 5, part: 1, beforeText: "La tecnología de conmutación de paquetes que utiliza etiquetas para asignar prioridades de QoS a voz y video es ", afterText: ".", correct: "MPLS", explanation: "MPLS conmuta tramas basadas en etiquetas permitiendo una gestión avanzada de Calidad de Servicio." },
+            { id: 6, part: 1, beforeText: "El protocolo estándar de la industria en Capa 2 para conexiones serie que soporta autenticación PAP y CHAP es ", afterText: ".", correct: "PPP", explanation: "PPP es un estándar abierto flexible que incluye mecanismos seguros de autenticación para enlaces serie." },
+            { id: 7, part: 2, beforeText: "El marco de estándares abiertos que opera en la Capa 3 para proporcionar seguridad en redes IP se denomina ", afterText: ".", correct: "IPsec", explanation: "IPsec trabaja en la Capa de Red (Capa 3), lo que le permite asegurar todo el tráfico superior de forma transparente." },
+            { id: 8, part: 2, beforeText: "El principio de seguridad en IPsec que transforma el texto plano en texto cifrado mediante algoritmos como AES es la ", afterText: ".", correct: "Confidencialidad", explanation: "La confidencialidad evita la lectura no autorizada ocultando el contenido mediante cifrado." },
+            { id: 9, part: 2, beforeText: "El protocolo IPsec que proporciona cifrado y autenticación de la carga útil es ", afterText: ".", correct: "ESP", explanation: "ESP (Protocolo IP 50) proporciona confidencialidad e integridad, a diferencia de AH que no cifra." },
+            { id: 10, part: 2, beforeText: "El modo de operación de IPsec que protege todo el paquete IP original agregando un nuevo encabezado externo es el ", afterText: ".", correct: "Modo Túnel", explanation: "El Modo Túnel encapsula completamente el paquete original para ocultar la topología interna en VPNs sitio a sitio." },
+            { id: 11, part: 2, beforeText: "El protocolo encargado de negociar las claves criptográficas y asociaciones de seguridad (SA) en el puerto UDP 500 es ", afterText: ".", correct: "IKE", explanation: "IKE (Internet Key Exchange) gestiona el intercambio de claves y acuerdos de seguridad entre gateways." },
+            { id: 12, part: 2, beforeText: "El proceso que confirma y verifica de manera exacta la identidad declarada por un usuario o dispositivo se llama ", afterText: ".", correct: "Autenticación", explanation: "La autenticación responde a la pregunta '¿Quién es usted?', diferenciándose de la autorización." }
+        ];
+
+        // Estado Global de la Aplicación
+        let studentInfo = { cedula: '', nombre: '' };
+        let userAnswers = {};
+        let currentPart = 1;
+        let selectedOption = null;
+        let timeLeft = 300;
+        let timerInterval = null;
+        let isPaused = false;
+        let soundEnabled = true;
+        let audioCtx = null;
+        let examSubmitted = false;
+
+        // Inicialización y AudioContext
+        document.getElementById('form-start').addEventListener('submit', function(e) {
+            e.preventDefault();
+            studentInfo.cedula = document.getElementById('cedula').value.trim();
+            studentInfo.nombre = document.getElementById('nombre').value.trim();
+            
+            // Web Audio API init
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContext();
+
+            document.getElementById('modal-start').classList.add('hidden');
+            startTimer();
+            renderPart(1);
+        });
+
+        // Generador de Sonidos Web Audio API
+        function playSound(type) {
+            if (!soundEnabled || !audioCtx) return;
+            
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'select') {
+                osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.05);
+            } else if (type === 'drop') {
+                osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.08);
+            } else if (type === 'submit') {
+                osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.3);
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.3);
+            }
+        }
+
+        // Renderizado del Examen por Parte
+        function renderPart(part) {
+            currentPart = part;
+            document.getElementById('part-indicator').textContent = `Parte ${part}`;
+            document.getElementById('btn-part-1').classList.toggle('active', part === 1);
+            document.getElementById('btn-part-2').classList.toggle('active', part === 2);
+
+            const bankContainer = document.getElementById('options-bank');
+            const questionsContainer = document.getElementById('questions-container');
+
+            bankContainer.innerHTML = '';
+            questionsContainer.innerHTML = '';
+
+            const itemsPart = dataset.filter(item => item.part === part);
+
+            // Banco de Opciones (Mezclado)
+            const options = itemsPart.map(i => i.correct).sort(() => Math.random() - 0.5);
+            options.forEach(optText => {
+                const card = document.createElement('div');
+                card.className = 'option-card';
+                card.textContent = optText;
+                card.draggable = !examSubmitted;
+
+                // Verificar si ya fue usada
+                if (Object.values(userAnswers).includes(optText)) {
+                    card.classList.add('used');
+                }
+
+                // Clic-Clic Interaction
+                card.addEventListener('click', () => {
+                    if (examSubmitted || card.classList.contains('used')) return;
+                    document.querySelectorAll('.option-card').forEach(c => c.classList.remove('selected'));
+                    card.classList.add('selected');
+                    selectedOption = optText;
+                    playSound('select');
+                });
+
+                // Drag & Drop
+                card.addEventListener('dragstart', (e) => {
+                    if (examSubmitted) return;
+                    e.dataTransfer.setData('text/plain', optText);
+                    playSound('select');
+                });
+
+                bankContainer.appendChild(card);
+            });
+
+            // Lista de Preguntas
+            itemsPart.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'question-card';
+
+                const filledVal = userAnswers[item.id] || '';
+                const filledClass = filledVal ? 'filled' : '';
+
+                card.innerHTML = `
+                    <span>${item.id}. ${item.beforeText}</span>
+                    <div class="drop-zone ${filledClass}" data-id="${item.id}">${filledVal}</div>
+                    <span>${item.afterText}</span>
+                    <div class="explanation" id="exp-${item.id}"><strong>Explicación:</strong> ${item.explanation}</div>
+                `;
+
+                const dropZone = card.querySelector('.drop-zone');
+
+                // Clic en DropZone para Clic-Clic
+                dropZone.addEventListener('click', () => {
+                    if (examSubmitted) return;
+                    if (selectedOption) {
+                        assignAnswer(item.id, selectedOption);
+                        selectedOption = null;
+                        document.querySelectorAll('.option-card').forEach(c => c.classList.remove('selected'));
+                    } else if (userAnswers[item.id]) {
+                        // Limpiar selección previa
+                        delete userAnswers[item.id];
+                        renderPart(currentPart);
+                        updateProgress();
+                    }
+                });
+
+                // Drag and Drop Events
+                dropZone.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    if (!examSubmitted) dropZone.classList.add('hover');
+                });
+
+                dropZone.addEventListener('dragleave', () => dropZone.classList.remove('hover'));
+
+                dropZone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    dropZone.classList.remove('hover');
+                    if (examSubmitted) return;
+                    const text = e.dataTransfer.getData('text/plain');
+                    assignAnswer(item.id, text);
+                });
+
+                questionsContainer.appendChild(card);
+            });
+
+            if (examSubmitted) applyFeedbackUI();
+        }
+
+        function assignAnswer(itemId, value) {
+            userAnswers[itemId] = value;
+            playSound('drop');
+            renderPart(currentPart);
+            updateProgress();
+        }
+
+        function switchPart(part) {
+            selectedOption = null;
+            renderPart(part);
+        }
+
+        function updateProgress() {
+            const count = Object.keys(userAnswers).length;
+            document.getElementById('progress-indicator').textContent = `${count}/12`;
+        }
+
+        // Temporizador y Control de Pausa
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                if (!isPaused && !examSubmitted) {
+                    timeLeft--;
+                    const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+                    const s = (timeLeft % 60).toString().padStart(2, '0');
+                    document.getElementById('timer').textContent = `${m}:${s}`;
+
+                    if (timeLeft <= 0) {
+                        clearInterval(timerInterval);
+                        submitExam();
+                    }
+                }
+            }, 1000);
+        }
+
+        function togglePause() {
+            if (examSubmitted) return;
+            isPaused = !isPaused;
+            document.getElementById('pause-overlay').classList.toggle('hidden', !isPaused);
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            document.getElementById('btn-sound').textContent = `Sonido: ${soundEnabled ? 'ON' : 'OFF'}`;
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+            }
+        }
+
+        // Finalización, Evaluación y Envío a Backend
+        function submitExam() {
+            if (examSubmitted) return;
+            examSubmitted = true;
+            clearInterval(timerInterval);
+            playSound('submit');
+
+            let correctCount = 0;
+            dataset.forEach(item => {
+                if (userAnswers[item.id] === item.correct) {
+                    correctCount++;
+                }
+            });
+
+            const percentage = Math.round((correctCount / 12) * 100);
+
+            document.getElementById('res-score').textContent = `${correctCount}/12`;
+            document.getElementById('res-percentage').textContent = `${percentage}% Obtenido`;
+            document.getElementById('modal-results').classList.remove('hidden');
+
+            // Renderizar el feedback visual inmediato
+            renderPart(currentPart);
+
+            // Envío a Google Apps Script
+            sendDataToGoogleSheets(correctCount, percentage);
+        }
+
+        function applyFeedbackUI() {
+            dataset.forEach(item => {
+                const zone = document.querySelector(`.drop-zone[data-id="${item.id}"]`);
+                const exp = document.getElementById(`exp-${item.id}`);
+                
+                if (zone) {
+                    const isCorrect = userAnswers[item.id] === item.correct;
+                    zone.classList.remove('filled');
+                    zone.classList.add(isCorrect ? 'correct' : 'incorrect');
+                    
+                    if (!userAnswers[item.id]) {
+                        zone.textContent = `[${item.correct}]`;
+                    } else if (!isCorrect) {
+                        zone.textContent = `${userAnswers[item.id]} (Correcto: ${item.correct})`;
+                    }
+                }
+
+                if (exp) exp.style.display = 'block';
+            });
+        }
+
+        function closeResultsModal() {
+            document.getElementById('modal-results').classList.add('hidden');
+        }
+
+        function sendDataToGoogleSheets(score, percentage) {
+            const statusLabel = document.getElementById('sending-status');
+            statusLabel.textContent = "Registrando respuestas en el servidor...";
+
+            if (GOOGLE_APP_SCRIPT_URL === 'INSERTAR_AQUI_TU_WEB_APP_URL') {
+                statusLabel.textContent = "Aviso: URL de Apps Script no configurada.";
+                return;
+            }
+
+            const payload = new URLSearchParams();
+            payload.append('fechaHora', new Date().toLocaleString());
+            payload.append('cedula', studentInfo.cedula);
+            payload.append('nombre', studentInfo.nombre);
+            payload.append('puntaje', `${score}/12`);
+            payload.append('porcentaje', `${percentage}%`);
+
+            fetch(GOOGLE_APP_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: payload
+            })
+            .then(() => {
+                statusLabel.textContent = "¡Calificación guardada exitosamente en la hoja de cálculo!";
+            })
+            .catch(err => {
+                statusLabel.textContent = "Error de conexión al guardar los datos.";
+                console.error(err);
+            });
+        }
+    </script>
+</body>
+</html>
